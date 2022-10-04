@@ -23,6 +23,13 @@ else
     touch /logs/tmp.txt && find /logs/*.txt -mtime +$ROTATE_LOG -type f -delete && rm -f /logs/tmp.txt
   fi
 
+  # Create symbolic links by user request
+  if [ ! -z "$SYMLINKS" ]
+  then
+    echo "INFO: Running the creation of Symbolic Links for SYMLINKS env var."
+    su "$USER" -c /symlinks.sh
+  fi
+
   echo $$ > /tmp/sync.pid
 
   # Evaluate any sync options
