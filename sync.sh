@@ -27,7 +27,7 @@ else
   if [ ! -z "$SYMLINKS" ]
   then
     echo "INFO: Running the creation of Symbolic Links for SYMLINKS env var."
-    su "$USER" -c /symlinks.sh
+    /symlinks.sh
   fi
 
   echo $$ > /tmp/sync.pid
