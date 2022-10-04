@@ -7,7 +7,10 @@ set -e
 # Where DEST has to be relative to /albums
 
 # Example
-# export SYMLINKS="/data/2021/Chip=/albums/[2021] Chip random;"
+# export SYMLINKS="/2021/Chip=/[2021] Chip random;"
+
+echo "Deleting All Symlink Albums in /albums"
+rm -r -- /albums/*/
 
 if [ ! -z "$SYMLINKS" ]
 then
@@ -15,13 +18,10 @@ then
   for symlink in "${ARRAY_OF_SYMLINKS[@]}"; do
     IFS='=' read -ra PATHS <<< "$symlink"
 
-    echo "Deleting Directory for: ${PATHS[1]}"
-    rm -rf "${PATHS[1]}"
-
     echo "Creating Directory for: ${PATHS[1]}"
     mkdir -p "${PATHS[1]}"
 
     echo "Creating Sym Links for: ${PATHS[0]} --> ${PATHS[1]}"
-    ln -sf "${PATHS[0]}"/* "${PATHS[1]}"
+    ln -sf /data/"${PATHS[0]}"/* /albums/"${PATHS[1]}"
   done
 fi
