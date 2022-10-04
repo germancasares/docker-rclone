@@ -40,6 +40,7 @@ RUN apk --no-cache add bash wget dcron tzdata
 COPY entrypoint.sh /
 COPY sync.sh /
 COPY sync-abort.sh /
+COPY symlinks.sh /
 
 # VOLUME ["/config"]
 # VOLUME ["/logs"]
