@@ -97,7 +97,7 @@ else
   if [ ! -z "$SYMLINKS" ]
   then
     echo "INFO: Running the creation of Symbolic Links for SYMLINKS env var."
-    mkdir /albums
+    mkdir -p /albums
     chown -R "$UID":"$GID" /albums
     su "$USER" -c /symlinks.sh
   fi
