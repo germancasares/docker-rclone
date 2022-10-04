@@ -10,7 +10,7 @@ set -e
 # export SYMLINKS="/2021/Chip=/[2021] Chip random;"
 
 echo "Deleting All Symlink Albums in /albums"
-rm -r -- /albums/*/
+rm -rf -- /albums/*/
 
 if [ ! -z "$SYMLINKS" ]
 then
