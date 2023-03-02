@@ -58,7 +58,7 @@ else
     echo "INFO: $RCLONE_CMD finished with return code: $RETURN_CODE"
   else
     set e+
-    if test "$(rclone --max-depth $RCLONE_DIR_CMD_DEPTH $RCLONE_DIR_CMD "$(eval echo $SYNC_SRC)" $RCLONE_OPTS $SYNC_OPTS_ALL)"; then
+    if test "$(rclone --max-depth $RCLONE_DIR_CMD_DEPTH $RCLONE_DIR_CMD "$(eval echo $SYNC_SRC)" "$(eval echo $RCLONE_OPTS)" $SYNC_OPTS_ALL)"; then
       set e-
       echo "INFO: Source directory is not empty and can be processed without clear loss of data"
       if [ ! -z "$OUTPUT_LOG" ]
