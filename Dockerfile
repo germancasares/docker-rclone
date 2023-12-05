@@ -2,8 +2,6 @@ FROM rclone/rclone
 
 LABEL maintainer="German Casares"
 
-# ARG RCLONE_VERSION=current
-# ARG ARCH=arm64
 ENV SYNC_SRC=
 ENV SYNC_DEST=
 ENV SYNC_OPTS=-v
@@ -27,24 +25,15 @@ ENV UID=
 ENV GID=
 ENV SUCCESS_CODES="0"
 
-# RUN apk --no-cache add ca-certificates fuse wget dcron tzdata
 RUN apk --no-cache add bash wget dcron tzdata
-
-# RUN URL=http://downloads.rclone.org/${RCLONE_VERSION}/rclone-${RCLONE_VERSION}-linux-${ARCH}.zip ; \
-#   URL=${URL/\/current/} ; \
-#   cd /tmp \
-#   && wget -q $URL \
-#   && unzip /tmp/rclone-${RCLONE_VERSION}-linux-${ARCH}.zip \
-#   && mv /tmp/rclone-*-linux-${ARCH}/rclone /usr/bin \
-#   && rm -r /tmp/rclone*
 
 COPY entrypoint.sh /
 COPY sync.sh /
 COPY sync-abort.sh /
 COPY symlinks.sh /
 
-# VOLUME ["/config"]
-# VOLUME ["/logs"]
+VOLUME ["/config"]
+VOLUME ["/logs"]
 
 ENTRYPOINT ["/entrypoint.sh"]
 

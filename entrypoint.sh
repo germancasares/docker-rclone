@@ -93,15 +93,6 @@ else
     FAIL_URL="${CHECK_URL}/fail"
   fi
 
-  # Create symbolic links by user request
-  if [ ! -z "$SYMLINKS" ]
-  then
-    echo "INFO: Running the creation of Symbolic Links for SYMLINKS env var."
-    mkdir -p /albums
-    chown -R "$UID":"$GID" /albums
-    su "$USER" -c /symlinks.sh
-  fi
-
   if [ -z "$CRONS" ]
   then
     echo "INFO: No CRON setting found. Running sync once."
