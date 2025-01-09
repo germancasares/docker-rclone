@@ -39,27 +39,31 @@ $ docker run --rm -it -v $(pwd)/config:/config pfidr/rclone
 
 A few environment variables allow you to customize the behavior of rclone:
 
-* `SYNC_SRC` source location for `rclone sync/copy/move` command. Directories with spaces should be wrapped in single quotes.
-* `SYNC_DEST` destination location for `rclone sync/copy/move` command. Directories with spaces should be wrapped in single quotes.
-* `SYNC_OPTS` additional options for `rclone sync/copy/move` command. Defaults to `-v`
-* `SYNC_OPTS_EVAL` further additional options for `rclone sync/copy/move` command. The variables and commands in the string are first interpolated like in a shell. The interpolated string is appended to SYNC_OPTS. That means '--backup-dir /old\`date -I\`' first evaluates to '--backup-dir /old2019-09-12', which is then appended to SYNC_OPTS. The evaluation happens immediately before rclone is called.
-* `SYNC_ONCE` set variable to only run the sync one time and then exit the container
-* `RCLONE_CMD` set variable to `sync` `copy` or `move`  when running rclone. Defaults to `sync`
-* `RCLONE_DIR_CMD` set variable to `ls` or `lsf` for source directory check style. Defaults to `ls`
-* `RCLONE_DIR_CMD_DEPTH` set the limit of the recursion depth to this. Defaults to `-1` (rclone default)
-* `RCLONE_DIR_CHECK_SKIP` set variable to skip source directory check before sync. *Use with caution*
-* `CRON` crontab schedule `0 0 * * *` to perform sync every midnight. Also supprorts cron shortcuts: `@yearly` `@monthly` `@weekly` `@daily` `@hourly`
-* `CRON_ABORT` crontab schedule `0 6 * * *` to abort sync at 6am
-* `FORCE_SYNC` set variable to perform a sync upon boot
-* `CHECK_URL` [healthchecks.io](https://healthchecks.io) url or similar cron monitoring to perform a `GET` after a successful sync
-* `FAIL_URL` Fail URL to perform a `GET` after unsuccessful execution. By default this is `CHECK_URL` with appended "/fail" at the end
-* `HC_LOG` set variable to send log data to healthchecks.io. `OUTPUT_LOG` must also be set.
-* `OUTPUT_LOG` set variable to output log file to /logs
-* `ROTATE_LOG` set variable to delete logs older than specified days from /logs
-* `TZ` set the [timezone](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) to use for the cron and log `America/Chicago`
-* `UID` set variable to specify user to run rclone as. Must also use GID.
-* `GID` set variable to specify group to run rclone as. Must also use UID.
-* `SUCCESS_CODES`: set variable to a space-separated list of return codes that are considered successful. If the return code matches any of these codes, the response will be marked as a success. Example: `SUCCESS_CODES="0 8 10"`. Default value is `0`
+| Name    | Required    | Description    |
+|-------|-------|-------|
+| UID | True | set variable to specify user to run rclone as. Must also use GID. |
+| GID | True | set variable to specify group to run rclone as. Must also use UID. |
+| SYNC_SRC | True | source location for `rclone sync/copy/move` command. Directories with spaces should be wrapped in single quotes. | 
+| SYNC_DEST | True | destination location for `rclone sync/copy/move` command. Directories with spaces should be wrapped in single quotes. |
+| SYNC_OPTS | False | additional options for `rclone sync/copy/move` command. Defaults to `-v` |
+| SYNC_OPTS_EVAL | False  | further additional options for `rclone sync/copy/move` command. The variables and commands in the string are first interpolated like in a shell. The interpolated string is appended to SYNC_OPTS. That means '--backup-dir /old\`date -I\`' first evaluates to '--backup-dir /old2019-09-12', which is then appended to SYNC_OPTS. The evaluation happens immediately before rclone is called. |
+| SYNC_ONCE | False | set variable to only run the sync one time and then exit the container |
+| RCLONE_CMD | False | set variable to `sync` `copy` or `move`  when running rclone. Defaults to `sync` |
+| RCLONE_DIR_CMD | False | set variable to `ls` or `lsf` for source directory check style. Defaults to `ls` |
+| RCLONE_DIR_CMD_DEPTH | False | set the limit of the recursion depth to this. Defaults to `-1` (rclone default) |
+| RCLONE_DIR_CHECK_SKIP | False | set variable to skip source directory check before sync. *Use with caution* |
+| CRON | False | crontab schedule `0 0 * * *` to perform sync every midnight. Also supprorts cron shortcuts: `@yearly` `@monthly` `@weekly` `@daily` `@hourly` |
+| CRON_ABORT | False | crontab schedule `0 6 * * *` to abort sync at 6am |
+| FORCE_SYNC | False | set variable to perform a sync upon boot |
+| CHECK_URL | False | [healthchecks.io](https://healthchecks.io) url or similar cron monitoring to perform a `GET` after a successful sync |
+| FAIL_URL | False | Fail URL to perform a `GET` after unsuccessful execution. By default this is `CHECK_URL` with appended "/fail" at the end |
+| HC_LOG | False | set variable to send log data to healthchecks.io. `OUTPUT_LOG` must also be set. |
+| OUTPUT_LOG | False | set variable to output log file to /logs |
+| ROTATE_LOG | False | set variable to delete logs older than specified days from /logs |
+| TZ | False | set the [timezone](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) to use for the cron and log `America/Chicago` |
+| SUCCESS_CODES | False | set variable to a space-separated list of return codes that are considered successful. If the return code matches any of these codes, the response will be marked as a success. Example: `SUCCESS_CODES="0 8 10"`. Default value is `0` |
+
+http://markdowntable.com/
 
 **When using UID/GID the config and/or logs directory must be writeable by this UID**
 
@@ -71,6 +75,8 @@ See [rclone sync docs](https://rclone.org/commands/rclone_sync/) for source/dest
 
 ## Changelog
 
++ **09/03/2024:**
+  * Update to latest Rclone (v1.67.0)
 + **07/06/2023:**
   * Update to latest Rclone (v1.63.0)
 + **07/18/2022:**
