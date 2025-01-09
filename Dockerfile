@@ -4,6 +4,7 @@ LABEL maintainer="German Casares"
 
 ENV SYNC_SRC=
 ENV SYNC_DEST=
+# ENV SYNC_OPTS=--exclude-from /config/rclone/exclude-list.txt --delete-excluded -v
 ENV SYNC_OPTS=-v
 ENV SYNC_OPTS_EVAL=
 ENV SYNC_ONCE=
