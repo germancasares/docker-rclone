@@ -77,9 +77,38 @@ else
         d=$(date +%Y_%m_%d-%H_%M_%S)
         LOG_FILE="/logs/$d.txt"
         echo "INFO: Log file output to $LOG_FILE"
-        echo "INFO: Starting rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL | tee -a ${LOG_FILE}"
         set +e
-        eval "rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL | tee -a ${LOG_FILE}"
+        # Check if SYNC_DEST starts with "GPhotos"
+        if [[ "$SYNC_DEST" != GPhotos* ]]; then
+          # Standard rclone operation
+          echo "INFO: Starting rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL | tee -a ${LOG_FILE}"
+          eval "rclone $RCLONE_CMD \"$SYNC_SRC\" \"$SYNC_DEST\" $RCLONE_OPTS $SYNC_OPTS_ALL | tee -a ${LOG_FILE}"
+        else
+          echo "INFO: SYNC_DEST starts with 'GPhotos'. Uploading folders as albums to Google Photos."
+
+          # Find all second-level folders in SYNC_SRC
+          find "$SYNC_SRC" -mindepth 2 -maxdepth 2 -type d | while read -r level2_folder; do
+            category=$(basename "$level2_folder")
+
+            # Get the first-level folder name (parent directory of the second-level folder)
+            year=$(basename "$(dirname "$level2_folder")")
+
+            # Merge the folder names into the album title (Year - Category)
+            album_name="$year - $category"
+            echo "INFO: Uploading album '$album_name' to Google Photos."
+
+            # rclone command to upload the folder as an album
+            eval "rclone copy \"$level2_folder\" \"$SYNC_DEST:$album_name\" $RCLONE_OPTS $SYNC_OPTS_ALL | tee -a ${LOG_FILE}"
+            export RETURN_CODE=$?
+
+            if [[ $RETURN_CODE -ne 0 ]]; then
+              echo "ERROR: Failed to upload album '$album_name'. Stopping further uploads." | tee -a ${LOG_FILE}
+              break  # Exit the loop on error
+            else
+              echo "INFO: Successfully uploaded album '$album_name'." | tee -a ${LOG_FILE}
+            fi
+          done
+        fi
         export RETURN_CODE=$?
         set -e
         echo "INFO: $RCLONE_CMD finished with return code: $RETURN_CODE"
