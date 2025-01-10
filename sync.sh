@@ -55,7 +55,7 @@ else
       echo "INFO: Log file output to $LOG_FILE"
       echo "INFO: Starting rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL | tee $LOG_FILE" 
       set +e
-      eval "rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL" | tee $LOG_FILE
+      eval "rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL | tee $LOG_FILE" 
       export RETURN_CODE=$?
       set -e
     else
@@ -79,7 +79,7 @@ else
         echo "INFO: Log file output to $LOG_FILE"
         echo "INFO: Starting rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL | tee ${LOG_FILE}" 
         set +e
-        eval "rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL" | tee $LOG_FILE
+        eval "rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL | tee $LOG_FILE" 
         export RETURN_CODE=$?
         set -e
         echo "INFO: $RCLONE_CMD finished with return code: $RETURN_CODE"
