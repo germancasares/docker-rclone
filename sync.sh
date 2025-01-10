@@ -53,9 +53,9 @@ else
       d=$(date +%Y_%m_%d-%H_%M_%S)
       LOG_FILE="/logs/$d.txt"
       echo "INFO: Log file output to $LOG_FILE"
-      echo "INFO: Starting rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL --log-file=${LOG_FILE}"
+      echo "INFO: Starting rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL | tee -a ${LOG_FILE}"
       set +e
-      eval "rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL --log-file=${LOG_FILE}"
+      eval "rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL | tee -a ${LOG_FILE}"
       export RETURN_CODE=$?
       set -e
     else
@@ -77,9 +77,9 @@ else
         d=$(date +%Y_%m_%d-%H_%M_%S)
         LOG_FILE="/logs/$d.txt"
         echo "INFO: Log file output to $LOG_FILE"
-        echo "INFO: Starting rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL --log-file=${LOG_FILE}"
+        echo "INFO: Starting rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL | tee -a ${LOG_FILE}"
         set +e
-        eval "rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL --log-file=${LOG_FILE}"
+        eval "rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL | tee -a ${LOG_FILE}"
         export RETURN_CODE=$?
         set -e
         echo "INFO: $RCLONE_CMD finished with return code: $RETURN_CODE"
