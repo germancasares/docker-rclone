@@ -59,6 +59,7 @@ A few environment variables allow you to customize the behavior of rclone:
 | FAIL_URL | False | Fail URL to perform a `GET` after unsuccessful execution. By default this is `CHECK_URL` with appended "/fail" at the end |
 | HC_LOG | False | set variable to send log data to healthchecks.io. `OUTPUT_LOG` must also be set. |
 | OUTPUT_LOG | False | set variable to output log file to /logs |
+| PRE_LOG_NAME |  | text to prepend to the log filename |
 | ROTATE_LOG | False | set variable to delete logs older than specified days from /logs |
 | TZ | False | set the [timezone](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) to use for the cron and log `America/Chicago` |
 | SUCCESS_CODES | False | set variable to a space-separated list of return codes that are considered successful. If the return code matches any of these codes, the response will be marked as a success. Example: `SUCCESS_CODES="0 8 10"`. Default value is `0` |

@@ -51,7 +51,7 @@ else
     if [ ! -z "$OUTPUT_LOG" ]
     then
       d=$(date +%Y_%m_%d-%H_%M_%S)
-      LOG_FILE="/logs/$d.txt"
+      LOG_FILE="/logs/$PRE_LOG_NAME$d.txt"
       echo "INFO: Log file output to $LOG_FILE"
       echo "INFO: Starting rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL --log-file=${LOG_FILE}" 
       set +e
@@ -75,7 +75,7 @@ else
       if [ ! -z "$OUTPUT_LOG" ]
       then
         d=$(date +%Y_%m_%d-%H_%M_%S)
-        LOG_FILE="/logs/$d.txt"
+        LOG_FILE="/logs/$PRE_LOG_NAME$d.txt"
         echo "INFO: Log file output to $LOG_FILE"
         echo "INFO: Starting rclone $RCLONE_CMD $SYNC_SRC $SYNC_DEST $RCLONE_OPTS $SYNC_OPTS_ALL --log-file=${LOG_FILE}" 
         set +e
