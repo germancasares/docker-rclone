@@ -58,6 +58,7 @@ A few environment variables allow you to customize the behavior of rclone:
 | CHECK_URL | False | [healthchecks.io](https://healthchecks.io) url or similar cron monitoring to perform a `GET` after a successful sync |
 | FAIL_URL | False | Fail URL to perform a `GET` after unsuccessful execution. By default this is `CHECK_URL` with appended "/fail" at the end |
 | HC_LOG | False | set variable to send log data to healthchecks.io. `OUTPUT_LOG` must also be set. |
+| HC_PROGRESS | False | set variable to send pings to healthchecks.io every minute. |
 | OUTPUT_LOG | False | set variable to output log file to /logs |
 | PRE_LOG_NAME |  | text to prepend to the log filename |
 | ROTATE_LOG | False | set variable to delete logs older than specified days from /logs |
