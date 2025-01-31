@@ -44,7 +44,7 @@ evaluate_sync_options() {
 execute_rclone() {
   if [ -n "$HC_PROGRESS" ]; then
     echo "INFO: Starting rclone API on a temporary socket"
-    rclone rcd --rc --rc-addr=localhost:5572 &
+    rclone rcd --rc-addr=localhost:5572 &
     sleep 10
 
     # Function to ping Healthchecks with current progress and speed

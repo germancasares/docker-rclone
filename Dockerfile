@@ -28,7 +28,7 @@ ENV UID=
 ENV GID=
 ENV SUCCESS_CODES="0"
 
-RUN apk --no-cache add bash wget dcron tzdata jq
+RUN apk --no-cache add bash wget dcron tzdata curl jq
 
 COPY entrypoint.sh /
 COPY sync.sh /
