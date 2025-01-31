@@ -37,11 +37,6 @@ evaluate_sync_options() {
     SYNC_OPTS_ALL="$SYNC_OPTS"
   fi
 
-  # Append & if the HC_PROGRESS env var is set
-  if [ -n "$HC_PROGRESS" ]; then
-    SYNC_OPTS_ALL="${SYNC_OPTS_ALL} &"
-  fi
-
   export SYNC_OPTS_ALL
 }
 
