@@ -51,28 +51,31 @@ execute_rclone() {
     ping_healthchecks() {
       while true; do
         STATS=$(curl -s -X POST http://localhost:5572/core/stats)
-        TRANSFERRED=$(echo $STATS | jq -r '.stats.bytes')
-        TOTAL=$(echo $STATS | jq -r '.transferring[] | select(.name=="total") | .size')
+        
+        TRANSFERRED=$(echo $STATS | jq -r '.stats.bytes // 0')
+        TOTAL=$(echo $STATS | jq -r '.transferring[]? | select(.name=="total") | .size // 0')
         PROGRESS_PERCENT=0
         ETA="unknown"
+
         if [ -n "$TOTAL" ] && [ "$TOTAL" -ne 0 ]; then
           PROGRESS_PERCENT=$((100 * TRANSFERRED / TOTAL))
-          SPEED=$(echo $STATS | jq -r '.stats.speed')
+          SPEED=$(echo $STATS | jq -r '.stats.speed // 0')
           if [ "$SPEED" -gt 0 ]; then
             REMAINING=$((TOTAL - TRANSFERRED))
             ETA=$(date -u -d @$(($REMAINING / $SPEED)) +"%Hh%Mm%Ss")
           fi
         fi
-        CHECKS=$(echo $STATS | jq -r '.checks')
-        TRANSFERRED_FILES=$(echo $STATS | jq -r '.transferred')
-        ELAPSED_TIME=$(echo $STATS | jq -r '.elapsedTime')
+
+        CHECKS=$(echo $STATS | jq -r '.checks // "unknown"')
+        TRANSFERRED_FILES=$(echo $STATS | jq -r '.transferred // "unknown"')
+        ELAPSED_TIME=$(echo $STATS | jq -r '.elapsedTime // "unknown"')
 
         DATA="Transferred: $(numfmt --to=iec $TRANSFERRED) / $(numfmt --to=iec $TOTAL), ${PROGRESS_PERCENT}%, $(numfmt --to=iec $SPEED)/s, ETA $ETA
 Checks: $CHECKS
 Transferred: $TRANSFERRED_FILES
 Elapsed time: $ELAPSED_TIME"
 
-        wget "$HC_PROGRESS" -O /dev/null --post-data="$DATA"
+        wget "$CHECK_URL/log" -O /dev/null --post-data="$DATA"
         sleep 60  # Adjust the interval as needed
       done
     }
