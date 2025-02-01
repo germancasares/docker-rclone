@@ -22,13 +22,12 @@ ENV FORCE_SYNC=
 ENV CHECK_URL=
 ENV FAIL_URL=
 ENV HC_LOG=
-ENV HC_PROGRESS=
 ENV TZ=
 ENV UID=
 ENV GID=
 ENV SUCCESS_CODES="0"
 
-RUN apk --no-cache add bash wget dcron tzdata coreutils curl jq
+RUN apk --no-cache add bash wget dcron tzdata
 
 COPY entrypoint.sh /
 COPY sync.sh /
