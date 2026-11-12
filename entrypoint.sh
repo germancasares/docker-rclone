@@ -59,7 +59,7 @@ fi
 case "$(echo "$CRON" | tr '[:lower:]' '[:upper:]')" in
     *@YEARLY* ) echo "INFO: Cron shortcut $CRON re-written to 0 0 1 1 *" && CRONS="0 0 1 1 *";;
     *@ANNUALLY* ) echo "INFO: Cron shortcut $CRON re-written to 0 0 1 1 *" && CRONS="0 0 1 1 *";;
-    *@MONTHLY* ) echo "INFO: Cron shortcut $CRON re-written to 0 0 1 * *" && CRONS="0 0 1 * * ";;
+    *@MONTHLY* ) echo "INFO: Cron shortcut $CRON re-written to 0 0 1 * *" && CRONS="0 0 1 * *";;
     *@WEEKLY* ) echo "INFO: Cron shortcut $CRON re-written to 0 0 * * 0" && CRONS="0 0 * * 0";;
     *@DAILY* ) echo "INFO: Cron shortcut $CRON re-written to 0 0 * * *" && CRONS="0 0 * * *";;
     *@MIDNIGHT* ) echo "INFO: Cron shortcut $CRON re-written to 0 0 * * *" && CRONS="0 0 * * *";;
@@ -76,6 +76,9 @@ then
 fi
 
 rm -f /tmp/sync.pid
+# The run lock of sync.sh; writable by the UID the sync runs as.
+: >/tmp/sync.lock
+chmod 666 /tmp/sync.lock
 
 # Check for source and destination ; launch config if missing
 if [ -z "$SYNC_SRC" ] || [ -z "$SYNC_DEST" ]
@@ -103,7 +106,8 @@ else
     then
       echo "INFO: Add FORCE_SYNC=1 to perform a sync upon boot"
     else
-      su "$USER" -c /sync.sh
+      # A stopped boot sync (CRON_ABORT) must not stop the container: cron still has to start.
+      su "$USER" -c /sync.sh || echo "WARNING: The boot sync ended with exit code $?"
     fi
 
     if [ ! -z "$SYNC_ONCE" ]
