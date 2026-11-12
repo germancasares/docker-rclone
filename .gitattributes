@@ -1,0 +1,2 @@
+# Unix line endings everywhere, also in a Windows checkout: the scripts run in Linux, and a CRLF shebang breaks them.
+* text=auto eol=lf
