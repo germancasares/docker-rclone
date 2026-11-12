@@ -1,178 +1,129 @@
 # docker-rclone
 
-Docker image to perform a [rclone](http://rclone.org) sync based on a cron schedule, with [healthchecks.io](https://healthchecks.io) monitoring.
-
-rclone is a command line program to sync files and directories to and from:
-
-* Google Drive
-* Amazon S3
-* Openstack Swift / Rackspace cloud files / Memset Memstore
-* Dropbox
-* Google Cloud Storage
-* Amazon Drive
-* Microsoft OneDrive
-* Hubic
-* Backblaze B2
-* Yandex Disk
-* SFTP
-* FTP
-* HTTP
-* The local filesystem
-
-## Usage
-
-### Configure rclone
-
-rclone needs a configuration file where credentials to access different storage
-provider are kept.
-
-By default, this image uses a file `/config/rclone.conf` and a mounted volume may be used to keep that information persisted.
-
-A first run of the container can help in the creation of the file, but feel free to manually create one.
+A Docker image that runs an [rclone](https://rclone.org) `sync`, `copy` or `move` on a cron schedule, with
+[healthchecks.io](https://healthchecks.io) monitoring.
 
 ```
-$ mkdir config
-$ docker run --rm -it -v $(pwd)/config:/config pfidr/rclone
+ghcr.io/germancasares/docker-rclone:latest
 ```
 
-### Perform sync in a daily basis
+- Built on the official [`rclone/rclone`](https://hub.docker.com/r/rclone/rclone) image, for `linux/amd64` and
+  `linux/arm64`.
+- Always on the newest rclone: GitHub Actions checks for a new rclone release every Monday and publishes it (see
+  [How the image is updated](#how-the-image-is-updated)).
+- The image's version label (`org.opencontainers.image.version`) is the rclone version it contains.
 
-A few environment variables allow you to customize the behavior of rclone:
+## What a run does
 
-| Name    | Required    | Description    |
-|-------|-------|-------|
-| UID | True | set variable to specify user to run rclone as. Must also use GID. |
-| GID | True | set variable to specify group to run rclone as. Must also use UID. |
-| SYNC_SRC | True | source location for `rclone sync/copy/move` command. Directories with spaces should be wrapped in single quotes. | 
-| SYNC_DEST | True | destination location for `rclone sync/copy/move` command. Directories with spaces should be wrapped in single quotes. |
-| SYNC_OPTS | False | additional options for `rclone sync/copy/move` command. Defaults to `-v` |
-| SYNC_OPTS_EVAL | False  | further additional options for `rclone sync/copy/move` command. The variables and commands in the string are first interpolated like in a shell. The interpolated string is appended to SYNC_OPTS. That means '--backup-dir /old\`date -I\`' first evaluates to '--backup-dir /old2019-09-12', which is then appended to SYNC_OPTS. The evaluation happens immediately before rclone is called. |
-| SYNC_ONCE | False | set variable to only run the sync one time and then exit the container |
-| RCLONE_CMD | False | set variable to `sync` `copy` or `move`  when running rclone. Defaults to `sync` |
-| RCLONE_DIR_CMD | False | set variable to `ls` or `lsf` for source directory check style. Defaults to `ls` |
-| RCLONE_DIR_CMD_DEPTH | False | set the limit of the recursion depth to this. Defaults to `-1` (rclone default) |
-| RCLONE_DIR_CHECK_SKIP | False | set variable to skip source directory check before sync. *Use with caution* |
-| CRON | False | crontab schedule `0 0 * * *` to perform sync every midnight. Also supprorts cron shortcuts: `@yearly` `@monthly` `@weekly` `@daily` `@hourly` |
-| CRON_ABORT | False | crontab schedule `0 6 * * *` to abort sync at 6am |
-| FORCE_SYNC | False | set variable to perform a sync upon boot |
-| CHECK_URL | False | [healthchecks.io](https://healthchecks.io) url or similar cron monitoring to perform a `GET` after a successful sync |
-| FAIL_URL | False | Fail URL to perform a `GET` after unsuccessful execution. By default this is `CHECK_URL` with appended "/fail" at the end |
-| HC_LOG | False | set variable to send log data to healthchecks.io. `OUTPUT_LOG` must also be set. |
-| HC_PROGRESS | False | set variable to send pings to healthchecks.io every minute. |
-| OUTPUT_LOG | False | set variable to output log file to /logs |
-| PRE_LOG_NAME |  | text to prepend to the log filename |
-| ROTATE_LOG | False | set variable to delete logs older than specified days from /logs |
-| TZ | False | set the [timezone](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) to use for the cron and log `America/Chicago` |
-| SUCCESS_CODES | False | set variable to a space-separated list of return codes that are considered successful. If the return code matches any of these codes, the response will be marked as a success. Example: `SUCCESS_CODES="0 8 10"`. Default value is `0` |
+1. Takes a lock, so two runs never overlap. A run that starts while another is going logs a warning and exits.
+2. Sends a start signal to `CHECK_URL`.
+3. Deletes logs older than `ROTATE_LOG` days.
+4. Checks that the source is not empty (it stops at the first file found). An empty or unreadable source is not
+   synced, so it can't wipe the destination; the run is reported as a failure.
+5. Runs `rclone <RCLONE_CMD> <SYNC_SRC> <SYNC_DEST> <RCLONE_OPTS> <SYNC_OPTS> <SYNC_OPTS_EVAL>`.
+6. Reports success or failure to healthchecks.io, by the exit code (see `SUCCESS_CODES`).
 
-http://markdowntable.com/
+`CRON_ABORT` stops a run that is still going (for example, so a sync doesn't use the bandwidth during the day). The
+stopped run is reported to healthchecks.io as a failure straight away.
 
-**When using UID/GID the config and/or logs directory must be writeable by this UID**
+## Configure rclone
 
-```bash
-$ docker run --rm -it -v $(pwd)/config:/config -v /path/to/source:/source -e SYNC_SRC="/source" -e SYNC_DEST="dest:path" -e TZ="America/Chicago" -e CRON="0 0 * * *" -e CRON_ABORT="0 6 * * *" -e FORCE_SYNC=1 -e CHECK_URL=https://hchk.io/hchk_uuid pfidr/rclone
+rclone reads its remotes from `/config/rclone/rclone.conf`. Mount a folder at `/config` that contains
+`rclone/rclone.conf`.
+
+To create the file, start the container without `SYNC_SRC` and `SYNC_DEST`: it runs `rclone config` interactively.
+
+```sh
+docker run --rm -it -v /path/to/config:/config ghcr.io/germancasares/docker-rclone
 ```
 
-See [rclone sync docs](https://rclone.org/commands/rclone_sync/) for source/dest syntax and additional options.
+## Example (Docker Compose)
 
-## Changelog
+```yaml
+services:
+  pictures-to-pcloud:
+    image: ghcr.io/germancasares/docker-rclone:latest
+    container_name: rclone-pictures-to-pcloud
+    restart: unless-stopped
+    volumes:
+      - /volume1/docker/rclone/config:/config
+      - /volume1/docker/rclone/logs/pictures:/logs
+      - /volume1/photo:/data:ro
+    environment:
+      UID: 1026
+      GID: 100
+      TZ: America/Chicago
+      SYNC_SRC: '"LocalDisk:/data"'
+      SYNC_DEST: '"pCloud:/Pictures"'
+      SYNC_OPTS: --exclude-from /config/rclone/exclude-list.txt --delete-excluded --max-delete 500 -v
+      CRON: '@daily'
+      CRON_ABORT: '0 8 * * *'
+      FORCE_SYNC: 'true'
+      OUTPUT_LOG: 'true'
+      ROTATE_LOG: 30
+      CHECK_URL: https://hc-ping.com/<your-check-uuid>
+```
 
-+ **09/03/2024:**
-  * Update to latest Rclone (v1.67.0)
-+ **07/06/2023:**
-  * Update to latest Rclone (v1.63.0)
-+ **07/18/2022:**
-  * Update to latest Rclone (v1.59.0)
-+ **04/25/2022:**
-  * Display exit code in console output
-  * Fix issue with healthcheck
-  * Update to latest Rclone (v1.58.0)
-+ **11/18/2021:**
-  * Update to latest Rclone (v1.57.0)
-+ **10/04/2021:**
-  * Update to latest Rclone (v1.56.2)
-+ **09/27/2021:**
-  * Update to latest Rclone (v1.56.1)
-+ **08/25/2021:**
-  * Update to latest Rclone (v1.56.0)
-+ **06/25/2021:**
-  * Update to latest Rclone (v1.55.1)
-+ **06/25/2021:**
-  * Update to latest Rclone (v1.55.0)
-+ **03/10/2021:**
-  * Update to latest Rclone (v1.54.1)
-+ **02/04/2021:**
-  * Update to latest Rclone (v1.54.0)
-+ **01/22/2021:**
-  * Update to latest Rclone (v1.53.4)
-+ **11/23/2020:**
-  * Update to latest Rclone (v1.53.3)
-+ **10/28/2020:**
-  * Update to latest Rclone (v1.53.2)
-+ **09/13/2020:**
-  * Update to latest Rclone (v1.53.1)
-+ **09/05/2020:**
-  * Update to latest Rclone (v1.53.0)
-+ **08/31/2020:**
-  * Add ability to send log data to healthchecks.io - See `HC_LOG` environment variable
-+ **08/20/2020:**
-  * Update to latest Rclone (v1.52.3)
-+ **06/25/2020:**
-  * Update to latest Rclone (v1.52.2)
-+ **06/11/2020:**
-  * Update to latest Rclone (v1.52.1)
-+ **05/28/2020:**
-  * Eval the entire rclone command
-  * Modify how rclone errors are interpreted when checking if source directory is empty
-+ **05/27/2020:**
-  * Update to latest Rclone (v1.52.0)
-  * Add `RCLONE_DIR_CMD_DEPTH` option to declare recursion depth when checking if `SYNC_SRC` is empty
-  * Move call to signal start of healthchecks.io further up in the sync process
-  * Change when logs are deleted to make sure an active log is not deleted
-+ **05/18/2020:**
-  * Modify how rclone errors are interpreted when passing results to healthchecks.io
-+ **05/17/2020:**
-  * Handle spaces in `SYNC_SRC` and `SYNC_DEST`
-+ **02/01/2020:**
-  * Update to latest Rclone (v1.51.0)
-+ **11/20/2019:**
-  * Update to latest Rclone (v1.50.2)
-+ **11/18/2019:**
-  * Add support for UID/GID
-+ **11/06/2019:**
-  * Update to latest Rclone (v1.50.1)
-+ **10/27/2019:**
-  * Update to latest Rclone (v1.50.0)
-+ **10/07/2019:**
-  * Update to latest Rclone (v1.49.5)
-+ **10/01/2019:**
-  * Update to latest Rclone (v1.49.4)
-+ **09/23/2019:**
-  * Add environment variable SYNC_ONCE
-+ **09/19/2019:**
-  * Add environment variable SYNC_OPTS_EVAL
-+ **09/17/2019:**
-  * Update to latest Rclone (v1.49.3)
-+ **09/10/2019:**
-  * Regression on log rotation 
-+ **09/09/2019:**
-  * Update to latest Rclone (v1.49.2)
-+ **08/29/2019:**
-  * Update to latest Rclone (v1.49.1)
-+ **08/20/2019:**
-  * Add start command for healthchecks.io calls
-  * Add debug messages for healthchecks.io calls
-+ **08/19/2019:**
-  * Correct log rotation when there are no logs
-+ **07/18/2019:**
-  * Optimizations to dockerfile
-+ **06/22/2019:**
-  * Update to latest Rclone (v1.48.0)
-+ **05/01/2019:**
-  * Initial release
+`--max-delete 500` is a safety net for `sync`: if a share is wiped or encrypted on the source, rclone stops deleting
+on the destination after 500 files, the run fails, and healthchecks.io reports it. Without it, the loss is copied to
+the destination on the next run.
 
-<br />
-<br />
-<br />
-<br />
-Credit to Brian J. Cardiff for the orginal project @ https://github.com/bcardiff/docker-rclone
+[`exclude-list.txt`](exclude-list.txt) is an example exclude list (Synology, macOS and Windows system files). Copy it
+to your config folder to use it as above; the image doesn't contain it.
+
+## Settings
+
+| Name | Default | Description |
+|---|---|---|
+| `SYNC_SRC` | | Source, for example `"LocalDisk:/data"`. Required to sync. Wrap paths with spaces in quotes. |
+| `SYNC_DEST` | | Destination, for example `"pCloud:/Pictures"`. Required to sync. Wrap paths with spaces in quotes. |
+| `RCLONE_CMD` | `sync` | `sync`, `copy` or `move`. |
+| `SYNC_OPTS` | `-v` | Extra rclone options. |
+| `SYNC_OPTS_EVAL` | | Extra rclone options that are evaluated like a shell string right before each run, then added to `SYNC_OPTS`. For example ``--backup-dir "pCloud:/_deleted/`date -I`"``. |
+| `RCLONE_OPTS` | `--config /config/rclone/rclone.conf` | Options added to every rclone call, including the source check. |
+| `CRON` | | Cron schedule, for example `0 0 * * *`, or `@yearly` `@monthly` `@weekly` `@daily` `@hourly`. Without it the container syncs once and exits. |
+| `CRON_ABORT` | | Cron schedule to stop a run that is still going, for example `0 8 * * *`. |
+| `FORCE_SYNC` | | Set to sync once when the container starts, then follow `CRON`. |
+| `SYNC_ONCE` | | With `FORCE_SYNC`, stop the container after that first sync. |
+| `UID`, `GID` | | Run rclone as this user and group (both or neither). `/config` and `/logs` must be writable by them. Without them, rclone runs as root. |
+| `TZ` | | Time zone for the schedules and the log names, for example `America/Chicago`. |
+| `CHECK_URL` | | healthchecks.io ping URL. The run sends `/start`, then the URL itself on success. |
+| `FAIL_URL` | `CHECK_URL/fail` | URL for a failure. |
+| `HC_LOG` | | With `OUTPUT_LOG`, send the last 10 KB of the rclone log with the success or failure signal. |
+| `SUCCESS_CODES` | `0` | rclone exit codes counted as success, space-separated, for example `0 9`. |
+| `OUTPUT_LOG` | | Write each run's rclone log to `/logs/<PRE_LOG_NAME><date>.txt`. |
+| `PRE_LOG_NAME` | | Text in front of each log file name. |
+| `ROTATE_LOG` | | Delete logs in `/logs` older than this many days. |
+| `RCLONE_DIR_CMD` | `ls` | How the source is checked for files: `ls` or `lsf`. |
+| `RCLONE_DIR_CMD_DEPTH` | `-1` | `--max-depth` of that check. |
+| `RCLONE_DIR_CHECK_SKIP` | | Set to skip the source check. *Use with caution:* an empty source then empties the destination. |
+
+## Health check
+
+The container is healthy while `crond` runs, or while a sync runs (the boot sync starts before `crond`). Docker marks
+it unhealthy if `crond` dies, so a monitor such as Uptime Kuma, or a dashboard, can tell.
+
+## How the image is updated
+
+The [Docker workflow](.github/workflows/docker-publish.yml) builds on the newest rclone release, runs
+[`tests/smoke.sh`](tests/smoke.sh) against the image, and then pushes it to GHCR:
+
+- **Every Monday:** if rclone has a release whose image isn't published yet, it publishes
+  `latest` and `rclone-<version>`. Otherwise it does nothing.
+- **A push to `master`, or a manual run:** publishes `latest` and `rclone-<version>`.
+- **A `v*.*.*` tag:** publishes `<version>` (for example `1.0.41`).
+- **A pull request:** builds and tests only.
+
+Every published image is signed with [cosign](https://github.com/sigstore/cosign) (keyless).
+Dependabot keeps the GitHub Actions current.
+
+To update the containers, pull the new image and recreate them, for example
+`docker compose pull && docker compose up -d`.
+
+To build locally: `docker build -t docker-rclone .` (newest rclone), or pin one with
+`--build-arg RCLONE_VERSION=1.76.0`.
+
+## Credits
+
+Forked from [pfidr34/docker-rclone](https://github.com/pfidr34/docker-rclone), which builds on
+[bcardiff/docker-rclone](https://github.com/bcardiff/docker-rclone).
