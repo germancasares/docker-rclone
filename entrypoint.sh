@@ -34,7 +34,7 @@ then
   GROUP=$(getent group "$GID" | cut -d: -f1)
   if [ -z "$GROUP" ]
   then
-    GROUP=rclone
+    GROUP="sync-g$GID"  # unique: the rclone base image already has a group named rclone
     addgroup --gid "$GID" "$GROUP"
   fi
 
@@ -42,7 +42,7 @@ then
   USER=$(getent passwd "$UID" | cut -d: -f1)
   if [ -z "$USER" ]
   then
-    USER=rclone
+    USER="sync-u$UID"
     adduser \
       --disabled-password \
       --gecos "" \
