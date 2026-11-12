@@ -1,97 +1,132 @@
 name: Docker
 
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
+# Builds the image on the newest rclone release, smoke-tests it, then publishes it to GHCR (not for pull requests).
+# - push to master or a v*.*.* tag: build and publish
+# - every Monday: publish only when rclone has a release that is not published yet
+# - pull request: build and test only
 
 on:
   push:
-    tags: [ 'v*.*.*' ]
+    branches: [master]
+    tags: ['v*.*.*']
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
-  # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
-  # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
-
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-      # This is used to complete the identity challenge
-      # with sigstore/fulcio when running outside of PRs.
+      # For the keyless cosign signature (sigstore/fulcio).
       id-token: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Install the cosign tool except on PR
-      # https://github.com/sigstore/cosign-installer
-      - name: Install cosign
-        if: github.event_name != 'pull_request'
-        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 #v3.5.0
-        with:
-          cosign-release: 'v2.2.4'
+      - name: Find the newest rclone release
+        id: rclone
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(gh api repos/rclone/rclone/releases/latest --jq .tag_name)
+          version=${version#v}
+          echo "Newest rclone: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      # Set up BuildKit Docker container builder to be able to build
-      # multi-platform images and export cache
-      # https://github.com/docker/setup-buildx-action
+      - name: Skip the weekly build when this rclone version is already published
+        id: published
+        if: github.event_name == 'schedule'
+        env:
+          VERSION: ${{ steps.rclone.outputs.version }}
+        run: |
+          if docker manifest inspect "$REGISTRY/$IMAGE_NAME:rclone-$VERSION" >/dev/null 2>&1; then
+            echo "rclone $VERSION is already published; nothing to do"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up QEMU
+        if: steps.published.outputs.skip != 'true'
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
+        if: steps.published.outputs.skip != 'true'
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      # Login against a Docker registry except on PR
-      # https://github.com/docker/login-action
+      - name: Build the image for the smoke test
+        if: steps.published.outputs.skip != 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          load: true
+          tags: docker-rclone:test
+          platforms: linux/amd64
+          build-args: RCLONE_VERSION=${{ steps.rclone.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        if: steps.published.outputs.skip != 'true'
+        run: bash tests/smoke.sh docker-rclone:test
+
       - name: Log into registry ${{ env.REGISTRY }}
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        if: steps.published.outputs.skip != 'true' && github.event_name != 'pull_request'
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Extract metadata (tags, labels) for Docker
-      # https://github.com/docker/metadata-action
+      # latest and rclone-<version> on master (push, schedule, manual run); the semver tags on a v*.*.* tag.
+      # The version label is the rclone version, so the Docker Updates dashboard shows "1.75.2 → 1.76.0".
       - name: Extract Docker metadata
+        if: steps.published.outputs.skip != 'true'
         id: meta
-        uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=rclone-${{ steps.rclone.outputs.version }},enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=ref,event=pr
+          labels: |
+            org.opencontainers.image.version=${{ steps.rclone.outputs.version }}
 
-      - name: Install latest arm64 builder
-        id: update-arm64-builder
-        run: docker run --privileged --rm tonistiigi/binfmt --install arm64
-
-      # Build and push Docker image with Buildx (don't push on PR)
-      # https://github.com/docker/build-push-action
       - name: Build and push Docker image
+        if: steps.published.outputs.skip != 'true'
         id: build-and-push
-        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: RCLONE_VERSION=${{ steps.rclone.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
 
-      # Sign the resulting Docker image digest except on PRs.
-      # This will only write to the public Rekor transparency log when the Docker
-      # repository is public to avoid leaking data.  If you would like to publish
-      # transparency data even for private images, pass --force to cosign below.
-      # https://github.com/sigstore/cosign
+      - name: Install cosign
+        if: steps.published.outputs.skip != 'true' && github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      # Keyless signature of the pushed digest; public repositories write it to the public Rekor log.
       - name: Sign the published Docker image
-        if: ${{ github.event_name != 'pull_request' }}
+        if: steps.published.outputs.skip != 'true' && github.event_name != 'pull_request'
         env:
-          # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
           TAGS: ${{ steps.meta.outputs.tags }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
-        # This step uses the identity token to provision an ephemeral certificate
-        # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}

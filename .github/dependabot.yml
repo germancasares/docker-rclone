@@ -1,0 +1,10 @@
+# Keeps the pinned GitHub Actions current. rclone itself is not pinned: the workflow builds on its newest release.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']
